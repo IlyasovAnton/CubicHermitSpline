@@ -14,28 +14,31 @@ class OpenGlCanvas(glcanvas.GLCanvas):
         self.context = glcanvas.GLContext(self)
         self.SetCurrent(self.context)
 
+        self.c = [0.1, 0.1, 0.1, 0.1, 0.1]
+        random.seed(228)
+        self.key_points = [[random.random() * 2. - 1., random.random() * 2. - 1., self.c] for i in range(5)]
+        self.key_points.sort()
+
         self.Bind(wx.EVT_PAINT, self.OnDraw)
 
     def OnDraw(self, event):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+        self.key_points = [[p[0], p[1], c] for p, c in zip(self.key_points, self.c)]
         self.drawHermitCurve()
 
         self.SwapBuffers()
 
     def drawHermitCurve(self):
-        key_points = [[random.random() * 2. - 1., random.random() * 2. - 1., 0.9] for i in range(5)]
-        key_points.sort()
-
         glPointSize(5)
         glBegin(GL_POINTS)
         glColor3d(1, 0, 0)
-        for p in key_points:
+        for p in self.key_points:
             glVertex(p[0], p[1])
         glEnd()
 
         spline = CubicHermiteSpline()
-        spline.Initialize(key_points)
+        spline.Initialize(self.key_points)
         X, Y = spline.Evaluate()
 
         glPointSize(1)
