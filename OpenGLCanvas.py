@@ -14,17 +14,25 @@ class OpenGlCanvas(glcanvas.GLCanvas):
         self.context = glcanvas.GLContext(self)
         self.SetCurrent(self.context)
 
-        self.c = [0.1, 0.1, 0.1, 0.1, 0.1]
-        random.seed(228)
-        self.key_points = [[random.random() * 2. - 1., random.random() * 2. - 1., self.c] for i in range(5)]
-        self.key_points.sort()
+        self.key_points = []
 
         self.Bind(wx.EVT_PAINT, self.OnDraw)
+        self.Bind(wx.EVT_LEFT_DOWN, self.leftMousePressed)
+
+    def leftMousePressed(self, event):
+        pos = event.GetPosition()
+        pos = (2 * pos.x / self.size[0] - 1., 1 - 2 * pos.y / self.size[1])
+        self.key_points.append([pos[0], pos[1], 0.1])
+        self.key_points.sort()
+
+        self.draw()
 
     def OnDraw(self, event):
+        self.draw()
+
+    def draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        self.key_points = [[p[0], p[1], c] for p, c in zip(self.key_points, self.c)]
         self.drawHermitCurve()
 
         self.SwapBuffers()
@@ -37,13 +45,14 @@ class OpenGlCanvas(glcanvas.GLCanvas):
             glVertex(p[0], p[1])
         glEnd()
 
-        spline = CubicHermiteSpline()
-        spline.Initialize(self.key_points)
-        X, Y = spline.Evaluate()
+        if len(self.key_points) > 1:
+            spline = CubicHermiteSpline()
+            spline.Initialize(self.key_points)
+            X, Y = spline.Evaluate()
 
-        glPointSize(1)
-        glBegin(GL_LINE_STRIP)
-        glColor3d(1, 0.5, 0)
-        for x, y in zip(X, Y):
-            glVertex(x, y)
-        glEnd()
+            glPointSize(1)
+            glBegin(GL_LINE_STRIP)
+            glColor3d(1, 0.5, 0)
+            for x, y in zip(X, Y):
+                glVertex(x, y)
+            glEnd()

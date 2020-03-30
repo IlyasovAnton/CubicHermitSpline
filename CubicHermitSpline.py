@@ -8,61 +8,51 @@ class TKeyPoint:
         self.C = c
         self.M = 0.
 
+    def __str__(self):
+        return f"TKeyPoint({self.T}, {self.X}, {self.C}, {self.M})"
+
+    def __repr__(self):
+        return f"TKeyPoint({self.T}, {self.X}, {self.C}, {self.M})\n"
+
 
 class CubicHermiteSpline:
     def __init__(self):
-        self.idx_prev = 0
         self.KeyPts = []
 
     def Initialize(self, keyPoints):
-        if keyPoints is not None:
-            self.KeyPts = [TKeyPoint(*point) for point in keyPoints]
+        def grad(idx):
+            if idx == 0 or idx == -1:
+                return (self.KeyPts[2*idx+1].X - self.KeyPts[2*idx].X) / (self.KeyPts[2*idx+1].T - self.KeyPts[2*idx].T)
+            else:
+                return (self.KeyPts[idx+1].X - self.KeyPts[idx-1].X) / (self.KeyPts[idx+1].T - self.KeyPts[idx-1].T)
 
-            grad = lambda idx1, idx2: (self.KeyPts[idx2].X - self.KeyPts[idx1].X) /\
-                                      (self.KeyPts[idx2].T - self.KeyPts[idx1].T)
+        self.KeyPts = [TKeyPoint(*point) for point in keyPoints]
 
-            for idx in range(1, len(self.KeyPts) - 1):
-                self.KeyPts[idx].M = (1.0 - self.KeyPts[idx].C) * grad(idx - 1, idx + 1)
+        for idx in range(1, len(self.KeyPts) - 1):
+            self.KeyPts[idx].M = (1.0 - self.KeyPts[idx].C) * grad(idx)
 
-            self.KeyPts[0].M = grad(0, 1)
-            self.KeyPts[-1].M = grad(-2, -1)
+        self.KeyPts[0].M = grad(0)
+        self.KeyPts[-1].M = grad(-1)
 
     def Evaluate(self):
         dt = 0.001
-        T = np.arange(self.KeyPts[0].T, self.KeyPts[-1].T, dt)
         X = []
+        T = []
+        for i in range(1, len(self.KeyPts)):
+            pt1 = self.KeyPts[i-1]
+            pt2 = self.KeyPts[i]
+            if pt1.T > pt2.T:
+                pt1, pt2 = pt2, pt1
 
-        for t in T:
-            idx = self.FindIdx(t, self.idx_prev)
-            if abs(t - self.KeyPts[-1].T) < 1.0e-6:
-                idx = len(self.KeyPts) - 2
-            if idx < 0 or idx >= len(self.KeyPts) - 1:
-                if idx < 0:
-                    idx = 0
-                    t = self.KeyPts[0].T
-                else:
-                    idx = len(self.KeyPts) - 2
-                    t = self.KeyPts[-1].T
+            Xrange = np.linspace(pt1.T, pt2.T, num=int((pt2.T-pt1.T)/dt))
+            T.extend(Xrange)
+            for x in Xrange:
+                h00 = lambda a: a * a * (2.0 * a - 3.0) + 1.0
+                h10 = lambda a: a * (a * (a - 2.0) + 1.0)
+                h01 = lambda a: a * a * (-2.0 * a + 3.0)
+                h11 = lambda a: a * a * (a - 1.0)
 
-            h00 = lambda t: t * t * (2.0 * t - 3.0) + 1.0
-            h10 = lambda t: t * (t * (t - 2.0) + 1.0)
-            h01 = lambda t: t * t * (-2.0 * t + 3.0)
-            h11 = lambda t: t * t * (t - 1.0)
-
-            self.idx_prev = idx
-            p0 = self.KeyPts[idx]
-            p1 = self.KeyPts[idx + 1]
-            tr = (t - p0.T) / (p1.T - p0.T)
-
-            X.append(h00(tr) * p0.X + h10(tr) * (p1.T - p0.T) * p0.M + h01(tr) * p1.X + h11(tr) * (p1.T - p0.T) * p1.M)
+                t = (x - pt1.T) / (pt2.T - pt1.T)
+                p = h00(t) * pt1.X + h10(t) * (pt2.T - pt1.T) * pt1.M + h01(t) * pt2.X + h11(t) * (pt2.T - pt1.T) * pt2.M
+                X.append(p)
         return T, X
-
-    def FindIdx(self, t, idx_prev=0):
-        idx = idx_prev
-        if idx >= len(self.KeyPts):
-            idx = len(self.KeyPts) - 1
-        while idx + 1 < len(self.KeyPts) and t > self.KeyPts[idx + 1].T:
-            idx += 1
-        while idx >= 0 and t < self.KeyPts[idx].T:
-            idx -= 1
-        return idx
