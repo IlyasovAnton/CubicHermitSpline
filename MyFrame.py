@@ -7,7 +7,7 @@ from MyPanel import MyPanel
 class MyFrame(wx.Frame):
     def __init__(self):
         self.size = (800, 800)
-        wx.Frame.__init__(self, None, title='My wx frame', size=self.size, pos=(700, 50),
+        wx.Frame.__init__(self, None, title='curves', size=self.size, pos=(700, 50),
                           style=wx.DEFAULT_FRAME_STYLE | wx.FULL_REPAINT_ON_RESIZE)
         self.SetMinSize(self.size)
         self.SetMaxSize(self.size)

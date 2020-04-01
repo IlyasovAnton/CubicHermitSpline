@@ -25,17 +25,25 @@ class CubicHermiteSpline:
     def Initialize(self, keyPoints):
         def grad(idx):
             if idx == 0 or idx == -1:
-                return (self.KeyPts[2*idx+1].X - self.KeyPts[2*idx].X) / (self.KeyPts[2*idx+1].T - self.KeyPts[2*idx].T)
+                try:
+                    grad = (self.KeyPts[2*idx+1].X - self.KeyPts[2*idx].X) / (self.KeyPts[2*idx+1].T - self.KeyPts[2*idx].T)
+                except ZeroDivisionError:
+                    grad = 10 ** 6
+                return grad
             else:
-                return (self.KeyPts[idx+1].X - self.KeyPts[idx-1].X) / (self.KeyPts[idx+1].T - self.KeyPts[idx-1].T)
+                try:
+                    grad = (self.KeyPts[idx+1].X - self.KeyPts[idx-1].X) / (self.KeyPts[idx+1].T - self.KeyPts[idx-1].T)
+                except ZeroDivisionError:
+                    grad = 10 ** 6
+                return grad
 
         self.KeyPts = [KeyPoint(*point) for point in keyPoints]
 
         for idx in range(1, len(self.KeyPts) - 1):
             self.KeyPts[idx].M = (1.0 - self.KeyPts[idx].C) * grad(idx)
 
-        self.KeyPts[0].M = grad(0)
-        self.KeyPts[-1].M = grad(-1)
+        self.KeyPts[0].M = (1.0 - self.KeyPts[0].C) * grad(0)
+        self.KeyPts[-1].M = (1.0 - self.KeyPts[-1].C) * grad(-1)
 
     def Evaluate(self, dt=0.001):
         X = []
@@ -52,7 +60,10 @@ class CubicHermiteSpline:
                 h01 = lambda a: a * a * (-2.0 * a + 3.0)
                 h11 = lambda a: a * a * (a - 1.0)
 
-                t = (x - pt1.T) / (pt2.T - pt1.T)
+                try:
+                    t = (x - pt1.T) / (pt2.T - pt1.T)
+                except ZeroDivisionError:
+                    t = 10 ** 6
                 p = h00(t) * pt1.X + h10(t) * (pt2.T - pt1.T) * pt1.M + h01(t) * pt2.X + h11(t) * (pt2.T - pt1.T) * pt2.M
                 Y.append(p)
         return X, Y
